@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT sr.* FROM score_rating sr\n            JOIN rating_type rt ON sr.rating_type_id = rt.id\n            WHERE sr.score_id = $1 AND rt.name = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "score_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "rating_type_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "rating_value",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 4,
+        "name": "max_rating",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "48fba48878022bc7af6be54d101e1c10d48b32bf8997fd20967d75d593c1a251"
+}

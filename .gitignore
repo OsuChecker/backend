@@ -1,0 +1,46 @@
+# Rust specific
+/target/
+**/*.rs.bk
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.*.local
+config.toml
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Build output
+/dist/
+/build/
+
+# Dependencies
+/node_modules/
+
+# Test coverage
+/coverage/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+
+# Scripts
+push-all.sh

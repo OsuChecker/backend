@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT s.* FROM score s\n            JOIN score_rating sr ON s.id = sr.score_id\n            JOIN rating_type rt ON sr.rating_type_id = rt.id\n            WHERE s.user_id = $1 AND rt.name = 'pp'\n            ORDER BY sr.rating_value DESC\n            LIMIT $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "beatmap_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "max_combo",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "perfect",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "statistics",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "mods",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "accuracy",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "rank",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "replay_available",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 12,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f79b8c0d03466864054d6672c353a9d83a5f262f0ac20e2dc10e9a45756fa8ba"
+}
