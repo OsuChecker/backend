@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::types::{chrono::NaiveDateTime, BigDecimal};
 use fake::Dummy;
 use utoipa::ToSchema;
+use sqlx::PgPool;
+use anyhow::Result;
+use crate::helpers::osuapi::{OsuAPI, BeatmapResponse};
 
 #[derive(Debug, Serialize, Deserialize, Dummy)]
 pub struct CreateBeatmap {
@@ -53,7 +56,7 @@ pub struct BeatmapSchema {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Beatmap {
     pub id: i32,
     pub beatmapset_id: i32,
@@ -187,5 +190,66 @@ impl Beatmap {
         .await?;
 
         Ok(record)
+    }
+
+    /// Récupère une beatmap par son hash MD5
+    /// Si la beatmap n'existe pas localement, interroge l'API osu!bancho et l'ajoute à la base
+    pub async fn get_beatmap_by_hash(pool: &PgPool, hash: &str) -> Result<Option<Self>, sqlx::Error> {
+        // D'abord, on vérifie si la beatmap existe déjà dans notre base
+        if let Some(beatmap) = Self::get_by_md5(pool, hash).await? {
+            return Ok(Some(beatmap));
+        }
+        
+        // Si non trouvée, interroger l'API osu!bancho
+        // Note: Dans un code de production, les clés devraient venir de variables d'environnement
+        let api = OsuAPI::new(
+            "37558".to_string(), 
+            "c9RSMy5MOmzrEPKLxpGowVjuY0s9nsoHg9qUZcvj".to_string()
+        );
+        
+        match api.get_beatmap_by_md5(hash).await {
+            Ok(beatmap_data) => {
+                // Convertir la réponse de l'API en CreateBeatmap
+                let create_beatmap = Self::from_api_response(beatmap_data);
+                
+                // Créer la beatmap dans la base de données
+                match Self::create(pool, create_beatmap).await {
+                    Ok(beatmap) => Ok(Some(beatmap)),
+                    Err(e) => {
+                        tracing::error!("Erreur lors de la création de la beatmap: {}", e);
+                        Err(e)
+                    }
+                }
+            },
+            Err(e) => {
+                tracing::error!("Erreur lors de la récupération de la beatmap depuis l'API: {}", e);
+                Ok(None) // On retourne None plutôt qu'une erreur pour ne pas bloquer le flux
+            }
+        }
+    }
+    
+    /// Convertit une réponse de l'API en CreateBeatmap
+    fn from_api_response(response: BeatmapResponse) -> CreateBeatmap {
+        CreateBeatmap {
+            beatmapset_id: response.beatmapset_id,
+            version: response.version,
+            difficulty_rating: BigDecimal::try_from(response.difficulty_rating).unwrap_or_default(),
+            count_circles: 0, // À compléter avec les données de l'API si disponibles
+            count_sliders: 0, // À compléter avec les données de l'API si disponibles
+            count_spinners: 0, // À compléter avec les données de l'API si disponibles
+            max_combo: response.max_combo.unwrap_or(0),
+            drain_time: response.drain as i32,
+            total_time: response.total_length,
+            bpm: BigDecimal::try_from(response.bpm).unwrap_or_default(),
+            cs: BigDecimal::try_from(response.cs).unwrap_or_default(),
+            ar: BigDecimal::try_from(response.ar).unwrap_or_default(),
+            od: BigDecimal::try_from(response.accuracy).unwrap_or_default(),
+            hp: BigDecimal::try_from(response.drain).unwrap_or_default(),
+            mode: response.mode_int,
+            status: response.status,
+            hit_length: response.hit_length,
+            file_md5: response.checksum.unwrap_or_default(),
+            file_path: format!("beatmaps/{}.osu", response.id), // Chemin par défaut
+        }
     }
 }

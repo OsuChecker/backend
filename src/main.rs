@@ -17,6 +17,7 @@ mod models;
 mod routes;
 mod fixtures;
 mod middleware;
+pub mod helpers;
 
 use axum::Router;
 use std::net::SocketAddr;
