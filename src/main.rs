@@ -16,12 +16,14 @@ mod handlers;
 mod models;
 mod routes;
 mod fixtures;
+mod middleware;
 
 use axum::Router;
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tracing::info;
 use fixtures::run_fixtures;
+use middleware::logging::setup_middleware;
 /// Point d'entrée principal de l'application.
 ///
 /// Cette fonction :
@@ -42,12 +44,15 @@ async fn main() {
         .expect("Failed to connect to database");
 
     // Run fixtures
-    run_fixtures(db.get_pool(), true).await.expect("Failed to run fixtures");
+    // run_fixtures(db.get_pool(), true).await.expect("Failed to run fixtures");
 
     // Build our application with a route
     let app = Router::new()
         .merge(routes::create_router(db))
         .layer(CorsLayer::permissive());
+
+    // Apply logging middleware
+    let app = setup_middleware(app);
 
     // Run it
     let addr: SocketAddr = config

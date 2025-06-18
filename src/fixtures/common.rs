@@ -1,5 +1,9 @@
 use sqlx::{Pool, Postgres};
 use tracing::{info, warn};
+use serde::{Deserialize, Serialize};
+use bigdecimal::BigDecimal;
+use std::str::FromStr;
+use serde_json::Value as JsonValue;
 
 pub struct FixtureManager {
     pool: Pool<Postgres>,
@@ -13,25 +17,19 @@ impl FixtureManager {
 
     /// Vérifie si les migrations sont à jour
     async fn check_migrations(&self) -> Result<(), sqlx::Error> {
-        info!("Checking if migrations are up to date...");
-        
-        // Vérifie si la table _sqlx_migrations existe
-        let migrations_exist = sqlx::query!(
-            "SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = '_sqlx_migrations'
-            ) as exists"
-        )
-        .fetch_one(&self.pool)
-        .await?
-        .exists
-        .unwrap_or(false);
-
-        if !migrations_exist {
-            warn!("No migrations found. Database may not be properly initialized.");
-        }
-
+        sqlx::migrate!("./migrations")
+            .run(&self.pool)
+            .await?;
         Ok(())
+    }
+
+    fn validate_decimal_value(value: &str) -> Result<BigDecimal, sqlx::Error> {
+        BigDecimal::from_str(value)
+            .map_err(|e| sqlx::Error::Protocol(format!("Invalid decimal value: {}", e)))
+    }
+
+    fn validate_json_value(value: &JsonValue) -> Result<JsonValue, sqlx::Error> {
+        Ok(value.clone())
     }
 
     pub async fn submit_fixtures<T: serde::Serialize>(
@@ -91,21 +89,35 @@ impl FixtureManager {
                         if let Some(i) = n.as_i64() {
                             query_builder = query_builder.bind(i);
                         } else if let Some(f) = n.as_f64() {
-                            query_builder = query_builder.bind(f);
+                            let decimal_str = format!("{:.3}", f);
+                            let decimal = Self::validate_decimal_value(&decimal_str)?;
+                            query_builder = query_builder.bind(decimal);
                         } else {
                             return Err(sqlx::Error::Protocol(format!("Unsupported number type for column {}", col)));
                         }
                     },
                     serde_json::Value::String(s) => {
-                        query_builder = query_builder.bind(s.clone());
+                        if let Ok(decimal) = Self::validate_decimal_value(s) {
+                            query_builder = query_builder.bind(decimal);
+                        } else {
+                            query_builder = query_builder.bind(s.clone());
+                        }
+                    },
+                    serde_json::Value::Array(arr) => {
+                        if arr.iter().all(|v| v.is_string()) {
+                            let strings: Vec<String> = arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect();
+                            query_builder = query_builder.bind(strings);
+                        } else {
+                            let json_value = Self::validate_json_value(value)?;
+                            query_builder = query_builder.bind(json_value);
+                        }
                     },
                     _ => {
-                        // Pour les tableaux et objets, on les sérialise en JSON
-                        let json_string = match serde_json::to_string(value) {
-                            Ok(s) => s,
-                            Err(e) => return Err(sqlx::Error::Protocol(format!("JSON serialization error: {}", e))),
-                        };
-                        query_builder = query_builder.bind(json_string);
+                        // Pour les objets JSON, on les valide et on les passe directement
+                        let json_value = Self::validate_json_value(value)?;
+                        query_builder = query_builder.bind(json_value);
                     }
                 }
             }
@@ -123,13 +135,9 @@ impl FixtureManager {
 
     /// Nettoie les fixtures d'une table
     pub async fn cleanup_fixtures(&self, table_name: &str) -> Result<(), sqlx::Error> {
-        info!("Cleaning up fixtures from table {}", table_name);
-        
-        sqlx::query(&format!("DELETE FROM {}", table_name))
+        sqlx::query(&format!("TRUNCATE TABLE {} CASCADE", table_name))
             .execute(&self.pool)
             .await?;
-
-        info!("Successfully cleaned up fixtures from table {}", table_name);
         Ok(())
     }
 }

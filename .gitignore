@@ -40,7 +40,7 @@ htmlcov/
 *.tmp
 *.temp
 .cache/
-
+.sqlx/
 
 # Scripts
 push-all.sh

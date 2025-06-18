@@ -19,19 +19,27 @@ use utoipa::OpenApi;
 
 // Re-export all route modules here
 pub mod help;
+pub mod user;
+pub mod map;
+pub mod score;
+pub mod public;
 
 #[derive(OpenApi)]
 #[openapi(paths(crate::handlers::help::health_check, crate::handlers::help::health_light,
-                crate::handlers::help::info, crate::handlers::help::ping))]
+                crate::handlers::help::info, crate::handlers::help::ping,
+                crate::handlers::user::get_user_by_id, crate::handlers::user::get_users,
+                crate::handlers::map::beatmap::get_beatmap, crate::handlers::map::beatmapset::get_beatmapset,
+                crate::handlers::score::score::get_leaderboard))]
 struct ApiDoc;
 
 pub fn create_router(db: DatabaseManager) -> Router {
     Router::new()
         .nest("/api", help::router())
+        .nest("/api", user::router(db.get_pool().clone()))
+        .nest("/api", map::beatmap::router(db.get_pool().clone()))
+        .nest("/api", map::beatmapset::router(db.get_pool().clone()))
+        .nest("/api", score::score::router(db.get_pool().clone()))
         .merge(SwaggerUi::new("/api/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))
-        // Add your other route modules here
-        // Example:
-        // .nest("/api", user::router())
-        // .nest("/api", product::router())
+        .merge(public::router(db.get_pool().clone()))
         .with_state(db)
 }

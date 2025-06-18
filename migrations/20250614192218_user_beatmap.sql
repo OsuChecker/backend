@@ -1,7 +1,7 @@
 -- Add migration script here
 
 -- Table utilisateur
-create table if not exists "user" (
+create table if not exists users (
     id serial primary key,
     username varchar(32) not null unique,
     email varchar(255) not null unique,
@@ -24,25 +24,20 @@ create table if not exists beatmapset (
     artist_unicode varchar(255),
     title varchar(255) not null,
     title_unicode varchar(255),
-    creator_id integer not null references "user"(id),
+    creator_id integer not null references users(id),
     source varchar(255),
     tags text[],
-    genre_id integer,
-    language_id integer,
     status varchar(20) not null default 'pending',
     has_video boolean not null default false,
     has_storyboard boolean not null default false,
     is_explicit boolean not null default false,
     is_featured boolean not null default false,
-    bpm decimal(10,2),
     cover_url varchar(255),
     preview_url varchar(255),
     osu_file_url varchar(255),
     created_at timestamp default now(),
     updated_at timestamp default now(),
-    constraint valid_status check (status in ('pending', 'ranked', 'qualified', 'loved', 'graveyard')),
-    constraint valid_genre check (genre_id >= 0 and genre_id <= 11),
-    constraint valid_language check (language_id >= 0 and language_id <= 11)
+    constraint valid_status check (status in ('pending', 'ranked', 'qualified', 'loved', 'graveyard'))
 );
 
 -- Table beatmap
@@ -75,10 +70,10 @@ create table if not exists beatmap (
 );
 
 -- Indexes pour la table user
-create index if not exists idx_user_username on "user"(username);
-create index if not exists idx_user_email on "user"(email);
-create index if not exists idx_user_country on "user"(country);
-create index if not exists idx_user_created_at on "user"(created_at);
+create index if not exists idx_user_username on users(username);
+create index if not exists idx_user_email on users(email);
+create index if not exists idx_user_country on users(country);
+create index if not exists idx_user_created_at on users(created_at);
 
 -- Indexes pour la table beatmapset
 create index if not exists idx_beatmapset_artist on beatmapset(artist);

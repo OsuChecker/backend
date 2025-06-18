@@ -3,7 +3,7 @@
 
 create table if not exists score (
     id serial primary key,
-    user_id integer not null references "user"(id),
+    user_id integer not null references users(id),
     beatmap_id integer not null references beatmap(id),
     score integer not null,
     max_combo integer not null,
@@ -22,7 +22,7 @@ create table if not exists score (
     replay_available boolean not null default false,
     created_at timestamp default now(),
     updated_at timestamp default now(),
-    constraint fk_user foreign key (user_id) references "user"(id) on delete cascade,
+    constraint fk_user foreign key (user_id) references users(id) on delete cascade,
     constraint valid_rank check (rank in ('XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D')),
     constraint valid_accuracy check (accuracy >= 0 and accuracy <= 100)
 );

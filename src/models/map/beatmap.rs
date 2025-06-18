@@ -1,5 +1,57 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::{chrono::NaiveDateTime, BigDecimal};
+use fake::Dummy;
+use utoipa::ToSchema;
+
+#[derive(Debug, Serialize, Deserialize, Dummy)]
+pub struct CreateBeatmap {
+    pub beatmapset_id: i32,
+    pub version: String,
+    pub difficulty_rating: BigDecimal,
+    pub count_circles: i32,
+    pub count_sliders: i32,
+    pub count_spinners: i32,
+    pub max_combo: i32,
+    pub drain_time: i32,
+    pub total_time: i32,
+    pub bpm: BigDecimal,
+    pub cs: BigDecimal,
+    pub ar: BigDecimal,
+    pub od: BigDecimal,
+    pub hp: BigDecimal,
+    pub mode: i32,
+    pub status: String,
+    pub hit_length: i32,
+    pub file_md5: String,
+    pub file_path: String,
+}
+
+// Struct pour la documentation API (sans BigDecimal)
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct BeatmapSchema {
+    pub id: i32,
+    pub beatmapset_id: i32,
+    pub version: String,
+    pub difficulty_rating: f64,
+    pub count_circles: i32,
+    pub count_sliders: i32,
+    pub count_spinners: i32,
+    pub max_combo: i32,
+    pub drain_time: i32,
+    pub total_time: i32,
+    pub bpm: f64,
+    pub cs: f64,
+    pub ar: f64,
+    pub od: f64,
+    pub hp: f64,
+    pub mode: i32,
+    pub status: String,
+    pub hit_length: i32,
+    pub file_md5: String,
+    pub file_path: String,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Beatmap {
@@ -28,6 +80,34 @@ pub struct Beatmap {
 }
 
 impl Beatmap {
+    // Convertir en BeatmapSchema pour la documentation API
+    pub fn to_schema(&self) -> BeatmapSchema {
+        BeatmapSchema {
+            id: self.id,
+            beatmapset_id: self.beatmapset_id,
+            version: self.version.clone(),
+            difficulty_rating: self.difficulty_rating.to_string().parse::<f64>().unwrap_or(0.0),
+            count_circles: self.count_circles,
+            count_sliders: self.count_sliders,
+            count_spinners: self.count_spinners,
+            max_combo: self.max_combo,
+            drain_time: self.drain_time,
+            total_time: self.total_time,
+            bpm: self.bpm.to_string().parse::<f64>().unwrap_or(0.0),
+            cs: self.cs.to_string().parse::<f64>().unwrap_or(0.0),
+            ar: self.ar.to_string().parse::<f64>().unwrap_or(0.0),
+            od: self.od.to_string().parse::<f64>().unwrap_or(0.0),
+            hp: self.hp.to_string().parse::<f64>().unwrap_or(0.0),
+            mode: self.mode,
+            status: self.status.clone(),
+            hit_length: self.hit_length,
+            file_md5: self.file_md5.clone(),
+            file_path: self.file_path.clone(),
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        }
+    }
+
     pub async fn get_by_id(pool: &sqlx::Pool<sqlx::Postgres>, id: i32) -> Result<Option<Self>, sqlx::Error> {
         let record = sqlx::query_as!(
             Self,
@@ -67,6 +147,45 @@ impl Beatmap {
         .fetch_optional(pool)
         .await?;
         
+        Ok(record)
+    }
+
+    pub async fn create(pool: &sqlx::Pool<sqlx::Postgres>, create_beatmap: CreateBeatmap) -> Result<Self, sqlx::Error> {
+        let record = sqlx::query_as!(
+            Self,
+            r#"
+            INSERT INTO beatmap (
+                beatmapset_id, version, difficulty_rating, count_circles,
+                count_sliders, count_spinners, max_combo, drain_time,
+                total_time, bpm, cs, ar, od, hp, mode,
+                status, hit_length, file_md5, file_path
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            RETURNING *
+            "#,
+            create_beatmap.beatmapset_id,
+            create_beatmap.version,
+            create_beatmap.difficulty_rating as _,
+            create_beatmap.count_circles,
+            create_beatmap.count_sliders,
+            create_beatmap.count_spinners,
+            create_beatmap.max_combo,
+            create_beatmap.drain_time,
+            create_beatmap.total_time,
+            create_beatmap.bpm as _,
+            create_beatmap.cs as _,
+            create_beatmap.ar as _,
+            create_beatmap.od as _,
+            create_beatmap.hp as _,
+            create_beatmap.mode,
+            create_beatmap.status,
+            create_beatmap.hit_length,
+            create_beatmap.file_md5,
+            create_beatmap.file_path
+        )
+        .fetch_one(pool)
+        .await?;
+
         Ok(record)
     }
 }

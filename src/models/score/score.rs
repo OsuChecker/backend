@@ -1,7 +1,25 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::{chrono::NaiveDateTime, BigDecimal, JsonValue};
+use serde_json;
+use fake::{Fake, Faker, Dummy};
+use utoipa::ToSchema;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Dummy, ToSchema)]
+pub struct ScoreStatistics {
+    pub count_300: i32,
+    pub count_100: i32,
+    pub count_50: i32,
+    pub count_miss: i32,
+    pub count_katu: i32,
+    pub count_geki: i32,
+}
+impl From<JsonValue> for ScoreStatistics {
+    fn from(value: JsonValue) -> Self {
+        serde_json::from_value(value).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Dummy)]
 pub struct Score {
     pub id: i32,
     pub user_id: i32,
@@ -9,13 +27,44 @@ pub struct Score {
     pub score: i32,
     pub max_combo: i32,
     pub perfect: bool,
-    pub statistics: JsonValue,
+    pub statistics: ScoreStatistics,
     pub mods: i32,
     pub accuracy: BigDecimal,
     pub rank: String,
     pub replay_available: bool,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ScoreSchema {
+    pub id: i32,
+    pub user_id: i32,
+    pub beatmap_id: i32,
+    pub score: i32,
+    pub max_combo: i32,
+    pub perfect: bool,
+    pub statistics: ScoreStatistics,
+    pub mods: i32,
+    pub accuracy: f64,
+    pub rank: String,
+    pub replay_available: bool,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Dummy)]
+pub struct CreateScore {
+    pub user_id: i32,
+    pub beatmap_id: i32,
+    pub score: i32,
+    pub max_combo: i32,
+    pub perfect: bool,
+    pub statistics: ScoreStatistics,
+    pub mods: i32,
+    pub accuracy: BigDecimal,
+    pub rank: String,
+    pub replay_available: bool,
 }
 
 impl Score {
@@ -96,6 +145,116 @@ impl Score {
         .fetch_optional(pool)
         .await?;
         
+        Ok(record)
+    }
+
+    pub async fn get_leaderboard(pool: &sqlx::Pool<sqlx::Postgres>, beatmap_id: i32, mods: Option<i32>, page: i64, per_page: i64) -> Result<Vec<Self>, sqlx::Error> {
+        let offset = (page - 1) * per_page;
+        
+        let records = match mods {
+            Some(mods_value) => {
+                sqlx::query_as!(
+                    Self,
+                    r#"
+                        SELECT *
+                        FROM (
+                            SELECT DISTINCT ON (user_id)
+                                id,
+                                user_id,
+                                beatmap_id,
+                                score,
+                                max_combo,
+                                perfect,
+                                statistics AS "statistics!: JsonValue",
+                                mods,
+                                accuracy,
+                                rank,
+                                replay_available,
+                                created_at,
+                                updated_at
+                            FROM score
+                            WHERE beatmap_id = $1 AND mods = $2
+                            ORDER BY user_id, score DESC
+                        ) AS best_scores
+                        ORDER BY score DESC
+                        LIMIT $3 OFFSET $4;
+
+                    "#,
+                    beatmap_id,
+                    mods_value,
+                    per_page,
+                    offset
+                )
+                .fetch_all(pool)
+                .await?
+            },
+            None => {
+                sqlx::query_as!(
+                    Self,
+                    r#"
+                        SELECT *
+                        FROM (
+                            SELECT DISTINCT ON (user_id)
+                                id,
+                                user_id,
+                                beatmap_id,
+                                score,
+                                max_combo,
+                                perfect,
+                                statistics AS "statistics!: JsonValue",
+                                mods,
+                                accuracy,
+                                rank,
+                                replay_available,
+                                created_at,
+                                updated_at
+                            FROM score
+                            WHERE beatmap_id = $1 
+                            ORDER BY user_id, score DESC
+                        ) AS best_scores
+                        ORDER BY score DESC
+                        LIMIT $2 OFFSET $3;
+                    "#,
+                    beatmap_id,
+                    per_page,
+                    offset
+                )
+                .fetch_all(pool)
+                .await?
+            }
+        };
+        
+        Ok(records)
+    }
+
+    pub async fn create(pool: &sqlx::Pool<sqlx::Postgres>, create_score: CreateScore) -> Result<Self, sqlx::Error> {
+        let statistics_json = serde_json::to_value(create_score.statistics)
+            .map_err(|e| sqlx::Error::Protocol(format!("Failed to serialize statistics: {}", e)))?;
+
+        let record = sqlx::query_as!(
+            Self,
+            r#"
+            INSERT INTO score (
+                user_id, beatmap_id, score, max_combo, perfect,
+                statistics, mods, accuracy, rank, replay_available
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING *
+            "#,
+            create_score.user_id,
+            create_score.beatmap_id,
+            create_score.score,
+            create_score.max_combo,
+            create_score.perfect,
+            statistics_json as _,
+            create_score.mods,
+            create_score.accuracy as _,
+            create_score.rank,
+            create_score.replay_available
+        )
+        .fetch_one(pool)
+        .await?;
+
         Ok(record)
     }
 }
