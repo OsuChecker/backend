@@ -34,6 +34,7 @@ pub struct Score {
     pub replay_available: bool,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub hash: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -51,6 +52,7 @@ pub struct ScoreSchema {
     pub replay_available: bool,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub hash: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Dummy)]
@@ -65,6 +67,7 @@ pub struct CreateScore {
     pub accuracy: BigDecimal,
     pub rank: String,
     pub replay_available: bool,
+    pub hash: Option<String>,
 }
 
 impl Score {
@@ -171,7 +174,8 @@ impl Score {
                                 rank,
                                 replay_available,
                                 created_at,
-                                updated_at
+                                updated_at,
+                                hash
                             FROM score
                             WHERE beatmap_id = $1 AND mods = $2
                             ORDER BY user_id, score DESC
@@ -207,7 +211,8 @@ impl Score {
                                 rank,
                                 replay_available,
                                 created_at,
-                                updated_at
+                                updated_at,
+                                hash
                             FROM score
                             WHERE beatmap_id = $1 
                             ORDER BY user_id, score DESC
@@ -236,9 +241,9 @@ impl Score {
             r#"
             INSERT INTO score (
                 user_id, beatmap_id, score, max_combo, perfect,
-                statistics, mods, accuracy, rank, replay_available
+                statistics, mods, accuracy, rank, replay_available, hash
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
             "#,
             create_score.user_id,
@@ -250,7 +255,8 @@ impl Score {
             create_score.mods,
             create_score.accuracy as _,
             create_score.rank,
-            create_score.replay_available
+            create_score.replay_available,
+            create_score.hash
         )
         .fetch_one(pool)
         .await?;

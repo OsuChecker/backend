@@ -100,6 +100,7 @@ pub async fn generate_score_stats(scores_list: &ScoreList, pool: &PgPool) -> Sco
                 accuracy: acc.clone(),
                 rank: accuracy_to_rank(acc.clone().to_f64().unwrap()),
                 replay_available:false,
+                hash: score.replay_hash.clone(),
             };
             Score::create(pool, create_score).await;
             // Compter par mode
