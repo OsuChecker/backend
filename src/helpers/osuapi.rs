@@ -152,6 +152,12 @@ impl OsuAPI {
         ];
 
         info!("Demande d'un nouveau token OAuth à l'API osu!");
+        info!("Paramètres de la requête OAuth:");
+        info!("  - client_id: {}", self.client_id);
+        info!("  - client_secret: {}***", &self.client_secret[..self.client_secret.len().min(4)]);
+        info!("  - grant_type: client_credentials");
+        info!("  - scope: public");
+        info!("Tentative de connexion à https://osu.ppy.sh/oauth/token...");
         
         let response = self.client
             .post("https://osu.ppy.sh/oauth/token")
@@ -159,24 +165,47 @@ impl OsuAPI {
             .form(&params)
             .send()
             .await
+            .map_err(|e| {
+                error!("Erreur de connexion lors de la requête OAuth: {}", e);
+                error!("Type d'erreur: {:?}", e);
+                if e.is_timeout() {
+                    error!("Erreur de timeout - vérifiez la connectivité réseau");
+                } else if e.is_connect() {
+                    error!("Erreur de connexion - impossible de joindre osu.ppy.sh");
+                } else if e.is_request() {
+                    error!("Erreur de requête - problème avec les paramètres");
+                }
+                e
+            })
             .context("Failed to request access token")?;
 
         let status = response.status();
+        info!("Réponse OAuth reçue: HTTP {}", status);
+        
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_else(|_| "Impossible de lire le corps de la réponse".to_string());
             error!("Échec de l'authentification OAuth: HTTP {}, Réponse: {}", status, error_text);
+            error!("URL de la requête: https://osu.ppy.sh/oauth/token");
+            error!("Headers de la requête: Accept: application/json, Content-Type: application/x-www-form-urlencoded");
             return Err(anyhow::anyhow!(
                 "Failed to get access token: HTTP {}, Response: {}", 
                 status, error_text
             ));
         }
 
-        let tokens: OAuthTokens = response
-            .json()
-            .await
+        let response_text = response.text().await
+            .context("Failed to read response body")?;
+        
+        info!("Réponse OAuth brute: {}", response_text);
+        
+        let tokens: OAuthTokens = serde_json::from_str(&response_text)
             .context("Failed to parse token response")?;
 
-        debug!("Token OAuth obtenu avec succès: type={}, expire_dans={}s", tokens.token_type, tokens.expires_in);
+        info!("Token OAuth obtenu avec succès:");
+        info!("  - type: {}", tokens.token_type);
+        info!("  - expire_dans: {}s", tokens.expires_in);
+        info!("  - access_token: {}***", &tokens.access_token[..tokens.access_token.len().min(8)]);
+        
         Ok(tokens)
     }
 

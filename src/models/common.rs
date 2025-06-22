@@ -22,7 +22,30 @@ pub struct PaginationParams {
     pub per_page: Option<i64>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct BeatmapsetSearchParams {
+    #[validate(range(min = 1))]
+    pub page: Option<i64>,
+    #[validate(range(min = 1, max = 50))]
+    pub per_page: Option<i64>,
+    pub search: Option<String>, // Recherche générale dans titre/artiste
+    pub artist: Option<String>, // Recherche spécifique dans l'artiste
+    pub title: Option<String>,  // Recherche spécifique dans le titre
+    pub tags: Option<String>,   // Recherche dans les tags
+    pub status: Option<String>, // Filtrage par statut exact
+}
+
 impl PaginationParams {
+    pub fn get_page(&self) -> i64 {
+        self.page.unwrap_or(1)
+    }
+
+    pub fn get_per_page(&self) -> i64 {
+        self.per_page.unwrap_or(20).min(50)
+    }
+}
+
+impl BeatmapsetSearchParams {
     pub fn get_page(&self) -> i64 {
         self.page.unwrap_or(1)
     }

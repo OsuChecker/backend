@@ -19,6 +19,7 @@ mod fixtures;
 mod middleware;
 pub mod helpers;
 pub mod auth;
+
 use axum::Router;
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;

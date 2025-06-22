@@ -9,6 +9,8 @@
 *.swo
 .DS_Store
 
+
+deploy.sh
 # Environment files
 .env
 .env.local

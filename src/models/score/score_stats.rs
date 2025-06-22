@@ -203,18 +203,12 @@ async fn get_or_create_user(
     pool: &PgPool,
     player_name: &str,
 ) -> Result<crate::models::user::user::User, Box<dyn std::error::Error + Send + Sync>> {
-    let test_username = format!("{}test", player_name);
     
-    match User::get_by_username(pool, &test_username).await? {
+    match User::get_by_username(pool, &player_name).await? {
         Some(user) => Ok(user),
         None => {
-            let create_user = CreateUser {
-                username: test_username.clone(),
-                email: format!("{}@test.com", test_username),
-                password: String::new(),
-                country: String::new(),
-            };
-            Ok(User::create(pool, create_user).await?)
+            error!("User not found, creating new user");
+            Err("User not found".into())
         }
     }
 }

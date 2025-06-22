@@ -1,5 +1,5 @@
 use crate::models::map::beatmapset::{Beatmapset, BeatmapsetSchema};
-use crate::models::common::PaginationParams;
+use crate::models::common::{PaginationParams, BeatmapsetSearchParams};
 use axum::{
     response::Json,
     http::StatusCode,
@@ -13,7 +13,12 @@ use sqlx::PgPool;
     tag = "Beatmapsets",
     params(
         ("page" = Option<i64>, Query, description = "Page number, default: 1"),
-        ("per_page" = Option<i64>, Query, description = "Items per page, default: 20")
+        ("per_page" = Option<i64>, Query, description = "Items per page, default: 20"),
+        ("search" = Option<String>, Query, description = "Search in title or artist"),
+        ("artist" = Option<String>, Query, description = "Search specifically in artist"),
+        ("title" = Option<String>, Query, description = "Search specifically in title"),
+        ("tags" = Option<String>, Query, description = "Search in tags"),
+        ("status" = Option<String>, Query, description = "Filter by exact status")
     ),
     responses(
         (status = 200, description = "Beatmapsets found", body = Vec<BeatmapsetSchema>),
@@ -22,12 +27,21 @@ use sqlx::PgPool;
 )]
 pub async fn get_beatmapsets(
     State(pool): State<PgPool>,
-    Query(params): Query<PaginationParams>,
+    Query(params): Query<BeatmapsetSearchParams>,
 ) -> Result<Json<Vec<BeatmapsetSchema>>, StatusCode> {
     let page = params.get_page();
     let per_page = params.get_per_page();
     
-    let beatmapsets = Beatmapset::get_all(&pool, page, per_page)
+    let beatmapsets = Beatmapset::search(
+        &pool, 
+        page, 
+        per_page,
+        params.search.as_deref(),
+        params.artist.as_deref(),
+        params.title.as_deref(),
+        params.tags.as_deref(),
+        params.status.as_deref(),
+    )
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
