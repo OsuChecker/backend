@@ -6,3 +6,4 @@ pub mod models;
 pub mod fixtures;
 pub mod middleware;
 pub mod helpers;
+pub mod auth;

@@ -18,13 +18,15 @@ mod routes;
 mod fixtures;
 mod middleware;
 pub mod helpers;
-
+pub mod auth;
 use axum::Router;
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
-use tracing::info;
+use tracing::{info, error};
 use fixtures::run_fixtures;
 use middleware::logging::setup_middleware;
+use models::map::beatmap_queue::BeatmapQueue;
+use helpers::osuapi::OsuAPI;
 /// Point d'entrée principal de l'application.
 ///
 /// Cette fonction :
@@ -44,8 +46,32 @@ async fn main() {
         .await
         .expect("Failed to connect to database");
 
-    // Run fixtures
-    // run_fixtures(db.get_pool(), true).await.expect("Failed to run fixtures");
+    // Run fixtures if enabled
+    if let Some(fixtures_config) = &config.fixtures {
+        if fixtures_config.enabled {
+            run_fixtures(db.get_pool(), fixtures_config.reset_database)
+                .await
+                .expect("Failed to run fixtures");
+        }
+    }
+    
+    // Initialize the beatmap queue
+    let api = OsuAPI::new(
+        config.osu_client_id().to_string(),
+        config.osu_client_secret().to_string()
+    );
+    
+    // Test the API connection
+    info!("Testing osu! API connection...");
+    match api.get_beatmap_by_id("1").await {
+        Ok(_) => info!("osu! API connection successful"),
+        Err(e) => error!("Failed to connect to osu! API: {}", e),
+    }
+    
+    BeatmapQueue::init(db.get_pool().clone(), api)
+        .await
+        .expect("Failed to initialize beatmap queue");
+    info!("Beatmap queue initialized");
 
     // Build our application with a route
     let app = Router::new()

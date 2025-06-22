@@ -1,7 +1,6 @@
 use crate::models::map::beatmap::{Beatmap, BeatmapSchema};
-use crate::models::common::PaginationParams;
+use axum::extract::{State, Path};
 use axum::{response::Json, http::StatusCode};
-use axum::extract::{State, Query, Path};
 use sqlx::PgPool;
 
 #[utoipa::path(

@@ -21,6 +21,13 @@ pub struct User {
     pub updated_at: Option<NaiveDateTime>,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SimplfiedUser{
+    pub id: i32,
+    pub username: String,
+    pub country: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Dummy, Validate)]
 pub struct CreateUser {
     #[dummy(faker = "3..32")]
@@ -31,7 +38,7 @@ pub struct CreateUser {
     pub email: String,
     #[dummy(faker = "8..128")]
     #[validate(length(min = 8, max = 128))]
-    pub password_hash: String,
+    pub password: String,
     #[dummy(faker = "CountryCode()")]
     #[validate(length(min = 2, max = 2))]
     pub country: String,
@@ -82,5 +89,32 @@ impl User {
         .await?;
 
         Ok(records)
+    }
+
+    pub async fn create(pool: &sqlx::Pool<sqlx::Postgres>, user: CreateUser) -> Result<Self, sqlx::Error> {
+        let record = sqlx::query_as!(
+            User,
+            r#"
+            INSERT INTO users (username, email, password_hash, country) 
+            VALUES ($1, $2, $3, $4) 
+            ON CONFLICT (username) DO NOTHING
+            RETURNING *
+            "#,
+            user.username,
+            user.email,
+            user.password,
+            user.country
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        match record {
+            Some(user) => Ok(user),
+            None => {
+                // L'utilisateur existe déjà, le récupérer
+                Self::get_by_username(pool, &user.username).await?
+                    .ok_or_else(|| sqlx::Error::RowNotFound)
+            }
+        }
     }
 }

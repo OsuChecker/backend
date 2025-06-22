@@ -16,6 +16,7 @@ use crate::db::DatabaseManager;
 use axum::Router;
 use utoipa_swagger_ui::SwaggerUi;
 use utoipa::OpenApi;
+use sqlx::PgPool;
 
 // Re-export all route modules here
 pub mod help;
@@ -23,14 +24,31 @@ pub mod user;
 pub mod map;
 pub mod score;
 pub mod public;
+pub mod auth;
 
 #[derive(OpenApi)]
-#[openapi(paths(crate::handlers::help::health_check, crate::handlers::help::health_light,
-                crate::handlers::help::info, crate::handlers::help::ping,
-                crate::handlers::user::get_user_by_id, crate::handlers::user::get_users,
-                crate::handlers::map::beatmap::get_beatmap, crate::handlers::map::beatmapset::get_beatmapset,
-                crate::handlers::score::score::get_leaderboard))]
-struct ApiDoc;
+#[openapi(
+    paths(
+        crate::handlers::user::get_user_by_id,
+        crate::handlers::user::get_users,
+        crate::handlers::map::beatmap::get_beatmap,
+        crate::handlers::map::beatmapset::get_beatmapsets,
+        crate::handlers::map::beatmapset::get_beatmapset_by_id,
+    ),
+    components(
+        schemas(
+            crate::models::user::user::User,
+            crate::models::map::beatmap::BeatmapSchema,
+            crate::models::map::beatmapset::BeatmapsetSchema,
+        )
+    ),
+    tags(
+        (name = "User", description = "User management endpoints"),
+        (name = "Beatmap", description = "Beatmap management endpoints"),
+        (name = "Beatmapsets", description = "Beatmapset management endpoints"),
+    )
+)]
+pub struct ApiDoc;
 
 pub fn create_router(db: DatabaseManager) -> Router {
     Router::new()
@@ -39,7 +57,8 @@ pub fn create_router(db: DatabaseManager) -> Router {
         .nest("/api", map::beatmap::router(db.get_pool().clone()))
         .nest("/api", map::beatmapset::router(db.get_pool().clone()))
         .nest("/api", score::score::router(db.get_pool().clone()))
-        .merge(SwaggerUi::new("/api/swagger").url("/api-doc/openapi.json", ApiDoc::openapi()))
+        .nest("/api", auth::router(db.get_pool().clone()))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .merge(public::router(db.get_pool().clone()))
         .with_state(db)
 }

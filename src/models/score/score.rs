@@ -3,8 +3,9 @@ use sqlx::types::{chrono::NaiveDateTime, BigDecimal, JsonValue};
 use serde_json;
 use fake::{Fake, Faker, Dummy};
 use utoipa::ToSchema;
-
-#[derive(Debug, Serialize, Deserialize, Dummy, ToSchema)]
+use crate::models::user::user::{SimplfiedUser};
+use crate::models::map::beatmap::Beatmap;
+#[derive(Debug, Serialize, Deserialize, Dummy, ToSchema, Clone)]
 pub struct ScoreStatistics {
     pub count_300: i32,
     pub count_100: i32,
@@ -14,6 +15,12 @@ pub struct ScoreStatistics {
     pub count_geki: i32,
 }
 impl From<JsonValue> for ScoreStatistics {
+    fn from(value: JsonValue) -> Self {
+        serde_json::from_value(value).unwrap()
+    }
+}
+
+impl From<JsonValue> for SimplfiedUser {
     fn from(value: JsonValue) -> Self {
         serde_json::from_value(value).unwrap()
     }
@@ -37,6 +44,42 @@ pub struct Score {
     pub hash: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Leaderboard{
+    pub id: i32,
+    pub beatmap_id: i32,
+    pub score: i32,
+    pub max_combo: i32,
+    pub perfect: bool,
+    pub statistics: ScoreStatistics,
+    pub mods: i32,
+    pub accuracy: BigDecimal,
+    pub rank: String,
+    pub replay_available: bool,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub hash: Option<String>,
+    pub player : SimplfiedUser,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct LeaderboardSchema {
+    pub id: i32,
+    pub beatmap_id: i32,
+    pub score: i32,
+    pub max_combo: i32,
+    pub perfect: bool,
+    pub statistics: ScoreStatistics,
+    pub mods: i32,
+    pub accuracy: f64,
+    pub rank: String,
+    pub replay_available: bool,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub hash: Option<String>,
+    pub player: SimplfiedUser,
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ScoreSchema {
     pub id: i32,
@@ -55,10 +98,10 @@ pub struct ScoreSchema {
     pub hash: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Dummy)]
+#[derive(Debug, Serialize, Deserialize, Dummy, Clone)]
 pub struct CreateScore {
     pub user_id: i32,
-    pub beatmap_id: i32,
+    pub beatmap_hash: String,
     pub score: i32,
     pub max_combo: i32,
     pub perfect: bool,
@@ -151,15 +194,33 @@ impl Score {
         Ok(record)
     }
 
-    pub async fn get_leaderboard(pool: &sqlx::Pool<sqlx::Postgres>, beatmap_id: i32, mods: Option<i32>, page: i64, per_page: i64) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn get_leaderboard(pool: &sqlx::Pool<sqlx::Postgres>, beatmap_id: i32, mods: Option<i32>, page: i64, per_page: i64) -> Result<Vec<Leaderboard>, sqlx::Error> {
         let offset = (page - 1) * per_page;
         
         let records = match mods {
             Some(mods_value) => {
                 sqlx::query_as!(
-                    Self,
+                    Leaderboard,
                     r#"
-                        SELECT *
+                        SELECT 
+                            best_scores.id,
+                            best_scores.beatmap_id,
+                            best_scores.score,
+                            best_scores.max_combo,
+                            best_scores.perfect,
+                            best_scores.statistics AS "statistics!: JsonValue",
+                            best_scores.mods,
+                            best_scores.accuracy,
+                            best_scores.rank,
+                            best_scores.replay_available,
+                            best_scores.created_at,
+                            best_scores.updated_at,
+                            best_scores.hash,
+                            json_build_object(
+                                'id', u.id,
+                                'username', u.username,
+                                'country', u.country
+                            ) as "player!: JsonValue"
                         FROM (
                             SELECT DISTINCT ON (user_id)
                                 id,
@@ -168,7 +229,7 @@ impl Score {
                                 score,
                                 max_combo,
                                 perfect,
-                                statistics AS "statistics!: JsonValue",
+                                statistics,
                                 mods,
                                 accuracy,
                                 rank,
@@ -180,8 +241,9 @@ impl Score {
                             WHERE beatmap_id = $1 AND mods = $2
                             ORDER BY user_id, score DESC
                         ) AS best_scores
-                        ORDER BY score DESC
-                        LIMIT $3 OFFSET $4;
+                        JOIN users u ON best_scores.user_id = u.id
+                        ORDER BY best_scores.score DESC
+                        LIMIT $3 OFFSET $4
 
                     "#,
                     beatmap_id,
@@ -194,9 +256,27 @@ impl Score {
             },
             None => {
                 sqlx::query_as!(
-                    Self,
+                    Leaderboard,
                     r#"
-                        SELECT *
+                        SELECT 
+                            best_scores.id,
+                            best_scores.beatmap_id,
+                            best_scores.score,
+                            best_scores.max_combo,
+                            best_scores.perfect,
+                            best_scores.statistics AS "statistics!: JsonValue",
+                            best_scores.mods,
+                            best_scores.accuracy,
+                            best_scores.rank,
+                            best_scores.replay_available,
+                            best_scores.created_at,
+                            best_scores.updated_at,
+                            best_scores.hash,
+                            json_build_object(
+                                'id', u.id,
+                                'username', u.username,
+                                'country', u.country
+                            ) as "player!: JsonValue"
                         FROM (
                             SELECT DISTINCT ON (user_id)
                                 id,
@@ -205,7 +285,7 @@ impl Score {
                                 score,
                                 max_combo,
                                 perfect,
-                                statistics AS "statistics!: JsonValue",
+                                statistics,
                                 mods,
                                 accuracy,
                                 rank,
@@ -217,8 +297,9 @@ impl Score {
                             WHERE beatmap_id = $1 
                             ORDER BY user_id, score DESC
                         ) AS best_scores
-                        ORDER BY score DESC
-                        LIMIT $2 OFFSET $3;
+                        JOIN users u ON best_scores.user_id = u.id
+                        ORDER BY best_scores.score DESC
+                        LIMIT $2 OFFSET $3
                     "#,
                     beatmap_id,
                     per_page,
@@ -235,8 +316,8 @@ impl Score {
     pub async fn create(pool: &sqlx::Pool<sqlx::Postgres>, create_score: CreateScore) -> Result<Self, sqlx::Error> {
         let statistics_json = serde_json::to_value(create_score.statistics)
             .map_err(|e| sqlx::Error::Protocol(format!("Failed to serialize statistics: {}", e)))?;
-
-        let record = sqlx::query_as!(
+        let get_beatmap = Beatmap::get_by_md5(pool, &create_score.beatmap_hash).await?.unwrap();
+        let record: Score = sqlx::query_as!(
             Self,
             r#"
             INSERT INTO score (
@@ -247,7 +328,7 @@ impl Score {
             RETURNING *
             "#,
             create_score.user_id,
-            create_score.beatmap_id,
+            get_beatmap.id,
             create_score.score,
             create_score.max_combo,
             create_score.perfect,

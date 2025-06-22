@@ -29,11 +29,32 @@ pub struct CorsConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthConfig {
+    pub jwt_secret: String,
+    pub jwt_expiry_hours: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FixturesConfig {
+    pub enabled: bool,
+    pub reset_database: bool,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
-    pub logging: LoggingConfig,
+    pub logging: Option<LoggingConfig>,
+    pub fixtures: Option<FixturesConfig>,
     pub cors: CorsConfig,
+    pub auth: AuthConfig,
+    pub osu_api: OsuApiConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OsuApiConfig {
+    client_id: String,
+    client_secret: String,
 }
 
 impl Config {
@@ -58,7 +79,7 @@ impl Config {
         let config = toml::from_str::<Config>(config_content)?;
         
         // Initialiser le logging avec la configuration
-        Self::init_logging(&config.logging.level, &config.logging.format);
+        Self::init_logging(&config.logging.as_ref().map_or("info", |l| &l.level), &config.logging.as_ref().map_or("json", |l| &l.format));
 
         info!("Configuration loaded successfully. Server will bind to: {}", config.server_address());
         Ok(config)
@@ -67,6 +88,26 @@ impl Config {
     /// Retourne l'adresse complète du serveur
     pub fn server_address(&self) -> String {
         format!("{}:{}", self.server.host, self.server.port)
+    }
+
+    /// Récupère l'identifiant client pour l'API osu!
+    pub fn osu_client_id(&self) -> &str {
+        &self.osu_api.client_id
+    }
+
+    /// Récupère le secret client pour l'API osu!
+    pub fn osu_client_secret(&self) -> &str {
+        &self.osu_api.client_secret
+    }
+
+    /// Récupère le secret JWT pour l'authentification
+    pub fn jwt_secret(&self) -> &str {
+        &self.auth.jwt_secret
+    }
+
+    /// Récupère la durée d'expiration des tokens JWT en heures
+    pub fn jwt_expiry_hours(&self) -> u64 {
+        self.auth.jwt_expiry_hours
     }
 }
 
@@ -83,10 +124,8 @@ impl Default for Config {
                 max_connections: 10,
                 min_connections: 1,
             },
-            logging: LoggingConfig {
-                level: "info".to_string(),
-                format: "json".to_string(),
-            },
+            logging: None,
+            fixtures: None,
             cors: CorsConfig {
                 allowed_origins: vec![
                     "http://localhost:3000".to_string(),
@@ -103,6 +142,14 @@ impl Default for Config {
                     "content-type".to_string(),
                     "authorization".to_string(),
                 ],
+            },
+            auth: AuthConfig {
+                jwt_secret: "default-secret-key-change-in-production".to_string(),
+                jwt_expiry_hours: 24,
+            },
+            osu_api: OsuApiConfig {
+                client_id: "".to_string(),
+                client_secret: "".to_string(),
             },
         }
     }

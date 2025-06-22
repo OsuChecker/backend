@@ -1,5 +1,4 @@
-use crate::models::score::score::{Score, ScoreSchema};
-use crate::models::common::PaginationParams;
+use crate::models::score::score::{Score, Leaderboard, LeaderboardSchema};
 use axum::{response::Json, http::StatusCode};
 use axum::extract::{State, Query, Path};
 use sqlx::PgPool;
@@ -25,7 +24,7 @@ pub struct LeaderboardParams {
     tag = "Score",
     params(LeaderboardParams),
     responses(
-        (status = 200, description = "Leaderboard retrieved successfully", body = Vec<ScoreSchema>),
+        (status = 200, description = "Leaderboard retrieved successfully", body = Vec<LeaderboardSchema>),
         (status = 404, description = "Beatmap not found")
     ),
     summary = "Get leaderboard",
@@ -35,7 +34,7 @@ pub async fn get_leaderboard(
     State(pool): State<PgPool>,
     Query(params): Query<LeaderboardParams>,
     Path(beatmap_id): Path<i32>,
-) -> Result<Json<Vec<Score>>, StatusCode> {
+) -> Result<Json<Vec<Leaderboard>>, StatusCode> {
     let page = params.page.unwrap_or(1);
     let per_page = params.per_page.unwrap_or(20);
 

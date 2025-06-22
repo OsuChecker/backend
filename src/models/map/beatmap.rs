@@ -5,6 +5,7 @@ use utoipa::ToSchema;
 use sqlx::PgPool;
 use anyhow::Result;
 use crate::helpers::osuapi::{OsuAPI, BeatmapResponse};
+use crate::models::map::beatmap_queue::BeatmapQueue;
 
 #[derive(Debug, Serialize, Deserialize, Dummy)]
 pub struct CreateBeatmap {
@@ -193,39 +194,9 @@ impl Beatmap {
     }
 
     /// Récupère une beatmap par son hash MD5
-    /// Si la beatmap n'existe pas localement, interroge l'API osu!bancho et l'ajoute à la base
     pub async fn get_beatmap_by_hash(pool: &PgPool, hash: &str) -> Result<Option<Self>, sqlx::Error> {
-        // D'abord, on vérifie si la beatmap existe déjà dans notre base
-        if let Some(beatmap) = Self::get_by_md5(pool, hash).await? {
-            return Ok(Some(beatmap));
-        }
-        
-        // Si non trouvée, interroger l'API osu!bancho
-        // Note: Dans un code de production, les clés devraient venir de variables d'environnement
-        let api = OsuAPI::new(
-            "37558".to_string(), 
-            "c9RSMy5MOmzrEPKLxpGowVjuY0s9nsoHg9qUZcvj".to_string()
-        );
-        
-        match api.get_beatmap_by_md5(hash).await {
-            Ok(beatmap_data) => {
-                // Convertir la réponse de l'API en CreateBeatmap
-                let create_beatmap = Self::from_api_response(beatmap_data);
-                
-                // Créer la beatmap dans la base de données
-                match Self::create(pool, create_beatmap).await {
-                    Ok(beatmap) => Ok(Some(beatmap)),
-                    Err(e) => {
-                        tracing::error!("Erreur lors de la création de la beatmap: {}", e);
-                        Err(e)
-                    }
-                }
-            },
-            Err(e) => {
-                tracing::error!("Erreur lors de la récupération de la beatmap depuis l'API: {}", e);
-                Ok(None) // On retourne None plutôt qu'une erreur pour ne pas bloquer le flux
-            }
-        }
+        // Simplement vérifier si la beatmap existe dans notre base
+        Self::get_by_md5(pool, hash).await
     }
     
     /// Convertit une réponse de l'API en CreateBeatmap

@@ -1,6 +1,6 @@
-use crate::models::score::score::{Score, ScoreSchema};
-use crate::models::score::score_stats::{ScoreStats, generate_score_stats};
-use axum::{response::Json, http::StatusCode, extract::State};
+use crate::models::score::score_stats::generate_score_stats;
+use crate::auth::AuthService;
+use axum::{response::Json, http::{StatusCode, HeaderMap}, extract::State};
 use bytes::Bytes;
 use sqlx::PgPool;
 use osu_db::{ScoreList, Mode};
@@ -16,28 +16,45 @@ struct MostPlayedBeatmap {
 }
 /// Handler pour recevoir et charger des scores depuis un fichier .db en bytes
 /// 
-/// Reçoit les données du fichier scores.db via multipart form et les parse en mémoire
-/// sans les sauvegarder en base de données
+/// Reçoit les données du fichier scores.db via multipart form, les parse en mémoire,
+/// envoie les beatmaps manquantes en file d'attente pour traitement asynchrone,
+/// et retourne immédiatement les statistiques
 #[axum::debug_handler]
 pub async fn load_scores_db(
     State(pool): State<PgPool>,
+    headers: HeaderMap,
     mut multipart: Multipart,
 ) -> Result<Json<ScoreLoadResponse>, StatusCode> {
+    // Extraire optionnellement les informations utilisateur
+    let auth_service = AuthService::new(
+        std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key".to_string())
+    );
+    let user_claims = auth_service.extract_optional_claims(&headers);
+    
+    // Vérifier que l'utilisateur est authentifié
+    let claims = user_claims.ok_or(StatusCode::UNAUTHORIZED)?;
+    
     // Récupérer le fichier via multipart
     let bytes = extract_file_from_multipart(&mut multipart).await?;
     
     // Parser les bytes en ScoreList
     let scores_list = parse_scores_db(&bytes)?;
     
-    // Générer les statistiques
-    let stats = generate_score_stats(&scores_list,&pool).await;
+    // Générer les statistiques et mettre les scores en file d'attente
+    // Passer les informations utilisateur
+    let stats = generate_score_stats(&scores_list, &claims.username, &pool).await;
     
-    // Construire la réponse
+    let message = format!(
+        "Bonjour {} ! {} scores détectés sur {} beatmaps. Pour les tests, seuls les 10 premiers scores sont traités en arrière-plan.", 
+        claims.username, stats.scores_count, stats.beatmaps_count
+    );
+    
     let response = ScoreLoadResponse {
         success: true,
-        stats: stats.clone(),
-        message: format!("{} scores chargés avec succès sur {} beatmaps", 
-                         stats.scores_count, stats.beatmaps_count),
+        scores_count: stats.scores_count,
+        beatmaps_count: stats.beatmaps_count,
+        message,
+        user_authenticated: true,
     };
     
     Ok(Json(response))
@@ -85,8 +102,10 @@ fn parse_scores_db(bytes: &Bytes) -> Result<ScoreList, StatusCode> {
 #[derive(serde::Serialize)]
 pub struct ScoreLoadResponse {
     success: bool,
-    stats: ScoreStats,
+    scores_count: usize,
+    beatmaps_count: usize,
     message: String,
+    user_authenticated: bool,
 }
 
 #[derive(serde::Serialize)]
