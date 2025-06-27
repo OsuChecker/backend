@@ -128,6 +128,24 @@ impl Score {
         Ok(record)
     }
 
+    pub async fn get_all(pool: &sqlx::Pool<sqlx::Postgres>, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<Self>, sqlx::Error> {
+        let limit = limit.unwrap_or(100);
+        let offset = offset.unwrap_or(0);
+        
+        let records = sqlx::query_as!(
+            Self,
+            r#"
+            SELECT * FROM score ORDER BY created_at DESC LIMIT $1 OFFSET $2
+            "#,
+            limit,
+            offset
+        )
+        .fetch_all(pool)
+        .await?;
+        
+        Ok(records)
+    }
+
     pub async fn get_by_user(pool: &sqlx::Pool<sqlx::Postgres>, user_id: i32) -> Result<Vec<Self>, sqlx::Error> {
         let records = sqlx::query_as!(
             Self,

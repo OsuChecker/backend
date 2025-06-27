@@ -75,9 +75,17 @@ async fn main() {
     info!("Beatmap queue initialized");
 
     // Build our application with a route
-    let app = Router::new()
-        .merge(routes::create_router(db))
-        .layer(CorsLayer::permissive());
+    let mut app = Router::new()
+        .merge(routes::create_router(db));
+
+    // CORS for localhost development - Comment/Uncomment as needed
+    // app = app.layer(CorsLayer::permissive()); // Permissive CORS for all origins
+     app = app.layer(
+         CorsLayer::new()
+            .allow_origin("*".parse::<axum::http::HeaderValue>().unwrap())
+            .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::PUT, axum::http::Method::DELETE])
+            .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::AUTHORIZATION])
+    );
 
     // Apply logging middleware
     let app = setup_middleware(app);

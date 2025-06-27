@@ -13,7 +13,7 @@
 //! 4. Utilisez `merge()` pour combiner les routes
 
 use crate::db::DatabaseManager;
-use axum::Router;
+use axum::{Router, routing::get};
 use utoipa_swagger_ui::SwaggerUi;
 use utoipa::OpenApi;
 use sqlx::PgPool;
@@ -34,24 +34,33 @@ pub mod auth;
         crate::handlers::map::beatmap::get_beatmap,
         crate::handlers::map::beatmapset::get_beatmapsets,
         crate::handlers::map::beatmapset::get_beatmapset_by_id,
+        crate::handlers::score::score::get_leaderboard,
+        crate::handlers::score::pp_calculator::calculate_missing_pp,
     ),
     components(
         schemas(
             crate::models::user::user::User,
             crate::models::map::beatmap::BeatmapSchema,
             crate::models::map::beatmapset::BeatmapsetSchema,
+            crate::handlers::score::score::LeaderboardParams,
+            crate::models::score::score::LeaderboardSchema,
+            crate::handlers::score::pp_calculator::PPCalculationParams,
+            crate::handlers::score::pp_calculator::PPCalculationResponse,
         )
     ),
     tags(
         (name = "User", description = "User management endpoints"),
         (name = "Beatmap", description = "Beatmap management endpoints"),
         (name = "Beatmapsets", description = "Beatmapset management endpoints"),
+        (name = "Score", description = "Score management endpoints"),
     )
 )]
 pub struct ApiDoc;
 
 pub fn create_router(db: DatabaseManager) -> Router {
     Router::new()
+        // Page d'accueil
+        .route("/", get(crate::handlers::home::home))
         .nest("/api", help::router())
         .nest("/api", user::router(db.get_pool().clone()))
         .nest("/api", map::beatmap::router(db.get_pool().clone()))

@@ -1,5 +1,4 @@
 use sqlx::PgPool;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 use anyhow::{Result, Context};
 use tokio::time;
@@ -10,10 +9,9 @@ use crate::models::map::beatmapset::{Beatmapset, CreateBeatmapset};
 use crate::models::score::score::{Score, CreateScore};
 use sqlx::types::BigDecimal;
 use tracing::{error, warn};
-use std::collections::HashMap;
 use flume::{Sender, Receiver};
-use tokio::sync::Mutex;
-
+use crate::helpers::pp::calculate_pp_for_score;
+use crate::models::score::score_rating::{ScoreRating, RatingType, CreateScoreRating};
 // Structure pour les requêtes de beatmap
 #[derive(Debug, Clone)]
 pub struct BeatmapRequest {
@@ -133,9 +131,23 @@ impl BeatmapQueue {
         let mut error_count = 0;
         
         for score in scores {
-            if let Err(e) = Score::create(pool, score.clone()).await {
+            let score = Score::create(pool, score.clone()).await;
+            if let Err(e) = score {
                 error_count += 1;
                 error!("Échec de création du score pour la beatmap {}: {}", beatmap_id, e);
+            }
+            else{
+                let score = score.unwrap();
+                let beatmap = Beatmap::get_by_id(pool, beatmap_id).await.unwrap().unwrap();
+                let pp = calculate_pp_for_score(&score, &beatmap).await.unwrap();
+                let rating_type = RatingType::get_by_name(pool, "pp").await.unwrap().unwrap();
+                let sr  = CreateScoreRating{
+                    score_id: score.id,
+                    rating_type_id: rating_type.id,
+                    rating_value: BigDecimal::try_from(pp).unwrap_or_default(),
+                    max_rating: Some(BigDecimal::try_from(pp).unwrap_or_default()),
+                    };
+                    let sr = ScoreRating::create(pool, sr).await;
             }
         }
     }

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSU Universal - Backend API</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --animate-duration: 0.8s;
+            --animate-delay: 0.1s;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: radial-gradient(ellipse at top, #1e1b4b, #111827);
+            min-height: 100vh;
+        }
+
+        .card-custom {
+            background: rgba(17, 24, 39, 0.8);
+            border: 2px solid #dc2626;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-custom:hover {
+            border-color: #ef4444;
+            box-shadow: 0 0 30px rgba(220, 38, 38, 0.3);
+            transform: translateY(-8px) scale(1.02);
+        }
+
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(220, 38, 38, 0.8);
+            }
+        }
+
+        .metric-bar {
+            height: 8px;
+            border-radius: 4px;
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-bar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .bar-green {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        .bar-yellow {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        .bar-red {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .fadeInUp {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .fadeInLeft {
+            animation: fadeInLeft 0.8s ease-out;
+        }
+
+        .fadeInRight {
+            animation: fadeInRight 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .glow-text {
+            text-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #dc2626;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .gradient-text {
+            background: linear-gradient(45deg, #dc2626, #ef4444, #f87171);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .progress-container {
+            background: rgba(55, 65, 81, 0.5);
+            border-radius: 6px;
+            padding: 2px;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto p-4 lg:p-8 max-w-7xl">
+        <!-- Header -->
+        <div class="text-center mb-12 fadeInUp">
+            <h1 class="text-5xl lg:text-7xl font-bold mb-4 glow-text gradient-text">
+                🎵 OSU Universal
+            </h1>
+            <p class="text-xl lg:text-2xl text-gray-300 font-medium">
+                Backend API Server Dashboard
+            </p>
+            <div class="mt-4">
+                <div class="badge badge-error badge-lg pulse-glow">
+                    <span class="font-semibold">LIVE MONITORING</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
+            <!-- Server Status Card -->
+            <div class="card card-custom shadow-2xl fadeInLeft">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl font-bold text-white mb-4">
+                        <span id="status-dot" class="status-dot bg-warning"></span>
+                        Server Status
+                    </h2>
+                    <div id="health-content" class="space-y-3">
+                        <div class="flex items-center justify-center space-x-3">
+                            <div class="loading-spinner"></div>
+                            <span class="text-gray-300">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Metrics Card -->
+            <div class="card card-custom shadow-2xl fadeInUp" style="animation-delay: 0.2s;">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl font-bold text-white mb-4">
+                        📊 System Metrics
+                    </h2>
+                    <div id="metrics-content" class="space-y-3">
+                        <div class="flex items-center justify-center space-x-3">
+                            <div class="loading-spinner"></div>
+                            <span class="text-gray-300">Loading metrics...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card card-custom shadow-2xl fadeInRight" style="animation-delay: 0.4s;">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl font-bold text-white mb-4">
+                        🚀 Quick Actions
+                    </h2>
+                    <p class="text-gray-400 mb-6">
+                        Quickly access the main API features.
+                    </p>
+                    <div class="space-y-3">
+                        <a href="/swagger-ui" target="_blank" 
+                           class="btn btn-error btn-lg w-full font-semibold hover:scale-105 transition-transform">
+                            📚 API Documentation
+                        </a>
+                        <a href="/api/help/info" target="_blank" 
+                           class="btn btn-outline btn-error btn-lg w-full font-semibold hover:scale-105 transition-transform">
+                            ℹ️ API Information
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-400 fadeInUp" style="animation-delay: 0.6s;">
+            <div class="divider divider-error"></div>
+            <p class="text-lg font-medium">
+                OSU Universal Backend API • 
+                <span class="text-error">Auto-refresh every 5 seconds</span>
+            </p>
+            <p class="text-sm mt-2 opacity-75">
+                Powered by Rust + Axum • Made with ❤️
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let healthCheckInterval;
+        let isFirstLoad = true;
+
+        function getColorClass(value, thresholds = [50, 250]) {
+            if (value <= thresholds[0]) return 'bar-green';
+            if (value <= thresholds[1]) return 'bar-yellow';
+            return 'bar-red';
+        }
+
+        function getProgressWidth(value, max) {
+            return Math.min((value / max) * 100, 100);
+        }
+
+        function createMetricBar(value, max, unit = '', thresholds = null) {
+            const width = getProgressWidth(value, max);
+            let colorClass = 'bar-green';
+            
+            if (thresholds) {
+                colorClass = getColorClass(value, thresholds);
+            } else if (width > 80) {
+                colorClass = 'bar-red';
+            } else if (width > 60) {
+                colorClass = 'bar-yellow';
+            }
+
+            return `
+                <div class="progress-container">
+                    <div class="metric-bar ${colorClass}" style="width: ${width}%"></div>
+                </div>
+                <span class="text-sm font-bold ${colorClass === 'bar-green' ? 'text-green-400' : colorClass === 'bar-yellow' ? 'text-yellow-400' : 'text-red-400'}">
+                    ${value}${unit}
+                </span>
+            `;
+        }
+
+        async function fetchHealthStatus() {
+            try {
+                const response = await fetch('/api/help/health');
+                const data = await response.json();
+                
+                updateHealthDisplay(data);
+                updateMetricsDisplay(data);
+                
+                if (isFirstLoad) {
+                    isFirstLoad = false;
+                }
+            } catch (error) {
+                console.error('Error fetching health status:', error);
+                updateHealthDisplayError();
+            }
+        }
+
+        function updateHealthDisplay(data) {
+            const statusDot = document.getElementById('status-dot');
+            const healthContent = document.getElementById('health-content');
+            
+            // Update status dot
+            if (data.status === 'healthy') {
+                statusDot.className = 'status-dot bg-success';
+            } else {
+                statusDot.className = 'status-dot bg-error';
+            }
+            
+            const dbResponseTime = data.database.response_time_ms || 0;
+            const apiResponseTime = data.performance.response_time_ms || 0;
+            
+            healthContent.innerHTML = `
+                <div class="space-y-4">
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">Global Status</div>
+                        <div class="stat-value text-lg ${data.status === 'healthy' ? 'text-success' : 'text-error'}">
+                            ${data.status === 'healthy' ? '✅ Online' : '❌ Offline'}
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">API Version</div>
+                        <div class="stat-value text-sm">
+                            <span class="badge badge-info">${data.version}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">Database</div>
+                        <div class="stat-value text-lg ${data.database.connected ? 'text-success' : 'text-error'}">
+                            ${data.database.connected ? '✅ Connected' : '❌ Disconnected'}
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">DB Response Time</div>
+                        <div class="stat-value text-sm space-y-2">
+                            ${createMetricBar(dbResponseTime, 500, ' ms', [50, 250])}
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">API Response Time</div>
+                        <div class="stat-value text-sm space-y-2">
+                            ${createMetricBar(apiResponseTime, 500, ' ms', [50, 250])}
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">Last Check</div>
+                        <div class="stat-value text-sm text-gray-300">
+                            ${new Date(data.timestamp).toLocaleTimeString('en-US')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateMetricsDisplay(data) {
+            const metricsContent = document.getElementById('metrics-content');
+            
+            const uptime = data.system.uptime;
+            const uptimeHours = Math.floor(uptime / 3600);
+            const uptimeMinutes = Math.floor((uptime % 3600) / 60);
+            const uptimeDays = Math.floor(uptimeHours / 24);
+            const displayHours = uptimeHours % 24;
+            
+            // Format uptime
+            let uptimeDisplay = '';
+            if (uptimeDays > 0) {
+                uptimeDisplay = `${uptimeDays}d ${displayHours}h ${uptimeMinutes}m`;
+            } else {
+                uptimeDisplay = `${uptimeHours}h ${uptimeMinutes}m`;
+            }
+            
+            metricsContent.innerHTML = `
+                <div class="space-y-4">
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">CPU Usage</div>
+                        <div class="stat-value text-sm space-y-2">
+                            ${createMetricBar(data.system.cpu_usage, 100, '%')}
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">CPU Cores</div>
+                        <div class="stat-value text-lg text-info">
+                            ${data.system.cpu_count} cores
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">Memory Usage</div>
+                        <div class="stat-value text-sm space-y-2">
+                            ${createMetricBar(data.system.memory_usage_percent, 100, '%')}
+                            <div class="text-xs text-gray-400">
+                                ${data.system.memory_used_mb} MB / ${data.system.memory_total_mb} MB
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">Disk Usage</div>
+                        <div class="stat-value text-sm space-y-2">
+                            ${createMetricBar(data.system.disk_usage_percent, 100, '%')}
+                        </div>
+                    </div>
+                    
+                    <div class="stat bg-base-200 rounded-lg p-3">
+                        <div class="stat-title text-gray-400">Uptime</div>
+                        <div class="stat-value text-lg text-success">
+                            ${uptimeDisplay}
+                        </div>
+                        <div class="stat-desc text-xs text-gray-500">
+                            Since ${new Date(Date.now() - uptime * 1000).toLocaleDateString('en-US')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateHealthDisplayError() {
+            const statusDot = document.getElementById('status-dot');
+            const healthContent = document.getElementById('health-content');
+            const metricsContent = document.getElementById('metrics-content');
+            
+            statusDot.className = 'status-dot bg-error';
+            
+            healthContent.innerHTML = `
+                <div class="alert alert-error">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <h3 class="font-bold">Connection Error!</h3>
+                        <div class="text-xs">Last attempt: ${new Date().toLocaleTimeString('en-US')}</div>
+                    </div>
+                </div>
+            `;
+            
+            metricsContent.innerHTML = `
+                <div class="alert alert-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <span>Data unavailable</span>
+                </div>
+            `;
+        }
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            // First immediate load
+            fetchHealthStatus();
+            
+            // Auto-refresh every 5 seconds
+            healthCheckInterval = setInterval(fetchHealthStatus, 5000);
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (healthCheckInterval) {
+                clearInterval(healthCheckInterval);
+            }
+        });
+    </script>
+</body>
+</html> 
