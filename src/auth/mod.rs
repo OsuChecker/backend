@@ -22,6 +22,7 @@ pub struct LoginRequest {
 pub struct LoginResponse {
     pub token: String,
     pub user: User,
+    pub roles: Vec<String>,
 }
 
 pub struct AuthService {
@@ -90,7 +91,10 @@ impl AuthService {
         // Générer le token
         let token = self.generate_token(&user, 24).map_err(AuthError::Jwt)?;
 
-        Ok(LoginResponse { token, user })
+        // Extraire les rôles de l'utilisateur
+        let roles = user.get_roles();
+
+        Ok(LoginResponse { token, user, roles })
     }
 
     /// Extraire optionnellement les claims depuis les headers HTTP

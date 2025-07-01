@@ -2,11 +2,11 @@
 # Copy this file to config.toml and modify as needed
 
 [server]
-host = "127.0.0.1"
-port = 3000
+host = "0.0.0.0"
+port = 3010
 
 [database]
-url = "postgres://postgres:postgres@localhost:5432/template_db"
+url = "postgres://postgres:postgres@localhost:5432/osu"
 max_connections = 10
 min_connections = 1
 
@@ -15,6 +15,19 @@ level = "info"
 format = "json"
 
 [cors]
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+allowed_origins = ["*"]
 allowed_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 allowed_headers = ["content-type", "authorization"] 
+
+[auth]
+jwt_secret = "your-token"
+jwt_expiry_hours = 24
+
+[osu_api]
+client_id = "your-id"
+client_secret = "your-secret"
+
+[fixtures]
+enabled = false
+reset_database = false 
+

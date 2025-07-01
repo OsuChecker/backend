@@ -5,6 +5,7 @@ use validator::Validate;
 use fake::faker::internet::en::{FreeEmail, Username};
 use fake::faker::address::en::CountryCode;
 use utoipa::ToSchema;
+use sqlx::types::JsonValue;
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct User {
     pub id: i32,
@@ -19,6 +20,7 @@ pub struct User {
     pub last_visit: Option<NaiveDateTime>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub roles: sqlx::types::JsonValue,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -45,11 +47,26 @@ pub struct CreateUser {
 }
 
 impl User {
+    pub fn get_roles(&self) -> Vec<String> {
+        self.roles
+            .as_array()
+            .unwrap_or(&Vec::new())
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect()
+    }
+
+    pub fn has_role(&self, role: &str) -> bool {
+        self.get_roles().contains(&role.to_string())
+    }
+
     pub async fn get_by_id(pool: &sqlx::Pool<sqlx::Postgres>, id: i32) -> Result<Option<Self>, sqlx::Error> {
         let record = sqlx::query_as!(
             User,
             r#"
-            SELECT * FROM users WHERE id = $1
+            SELECT id, username, email, password_hash, country, avatar_url, cover_url, 
+                   is_verified, last_visit, created_at, updated_at, roles as "roles: sqlx::types::JsonValue"
+            FROM users WHERE id = $1
             "#,
             id
         )
@@ -63,7 +80,9 @@ impl User {
         let record = sqlx::query_as!(
             User,
             r#"
-            SELECT * FROM users WHERE username = $1
+            SELECT id, username, email, password_hash, country, avatar_url, cover_url, 
+                   is_verified, last_visit, created_at, updated_at, roles as "roles: sqlx::types::JsonValue"
+            FROM users WHERE username = $1
             "#,
             username
         )
@@ -78,7 +97,9 @@ impl User {
         let records = sqlx::query_as!(
             User,
             r#"
-            SELECT * FROM users
+            SELECT id, username, email, password_hash, country, avatar_url, cover_url, 
+                   is_verified, last_visit, created_at, updated_at, roles as "roles: sqlx::types::JsonValue"
+            FROM users
             ORDER BY id
             LIMIT $1 OFFSET $2
             "#,
@@ -98,7 +119,8 @@ impl User {
             INSERT INTO users (username, email, password_hash, country) 
             VALUES ($1, $2, $3, $4) 
             ON CONFLICT (username) DO NOTHING
-            RETURNING *
+            RETURNING id, username, email, password_hash, country, avatar_url, cover_url, 
+                      is_verified, last_visit, created_at, updated_at, roles as "roles: sqlx::types::JsonValue"
             "#,
             user.username,
             user.email,

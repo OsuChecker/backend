@@ -1,48 +1,214 @@
-# Rust specific
-/target/
-**/*.rs.bk
+# Build artifacts
+target/
+debug/
+release/
 
-# IDE specific
+# Dependencies
+**/node_modules
+**/.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+
+# Production build
+dist/
+build/
+deploy.sh
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Logs
+*.log
+logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower dependency directory (https://bower.io/)
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.test
+.env.production
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# ===================================
+# 🔒 SÉCURITÉ - SECRETS ET DONNÉES SENSIBLES
+# ===================================
+
+# INTERDICTION ABSOLUE - Aucun secret ne doit être committé !
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+
+# Variables d'environnement avec secrets
+.env*
+!.env.example
+.secrets
+secrets.*
+secret.*
+
+# Fichiers de configuration avec potentiels secrets
+config.toml
+!config.toml.example
+database.yml
+!database.yml.example
+
+# Kubernetes secrets (au cas où quelqu'un les télécharge)
+*secret*.yaml
+*secret*.yml
+kubeconfig*
+*.kubeconfig
+
+# Fichiers temporaires de secrets
+/tmp/secrets*
+/tmp/config*
+.kube/config
+.docker/config.json
+
+# Sauvegardes potentiellement sensibles
+*.backup
+*.bak
+*.dump
+*.sql
+
+# Clés API et tokens
+.token
+.api-key
+credentials.*
+auth.*
+
+# ===================================
+# DÉVELOPPEMENT
+# ===================================
+
+# IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
+# ===================================
+# PROJET SPÉCIFIQUE
+# ===================================
 
-deploy.sh
-# Environment files
-.env
-.env.local
-.env.*.local
-config.toml
+# Cache et uploads
+cache/
+uploads/
+public/uploads/
 
-# Logs
-*.log
-logs/
+# Tests
+tests/coverage/
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Build output
-/dist/
-/build/
-
-# Dependencies
-/node_modules/
-
-# Test coverage
-/coverage/
-.coverage
-htmlcov/
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
-.sqlx/
-
-# Scripts
-push-all.sh
+# Documentation générée
+docs/generated/

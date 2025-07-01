@@ -54,6 +54,7 @@ pub async fn register(
 
             Ok(Json(json!({
                 "message": "User created successfully",
+                "roles": user.get_roles(),
                 "token": token,
                 "user": user
             })))
