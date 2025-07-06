@@ -170,7 +170,6 @@ kubeconfig*
 *.backup
 *.bak
 *.dump
-*.sql
 
 # Clés API et tokens
 .token

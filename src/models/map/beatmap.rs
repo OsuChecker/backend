@@ -112,6 +112,26 @@ impl Beatmap {
         }
     }
 
+    // Get a random beatmap from the database
+    pub async fn get_random_beatmap(pool: &sqlx::Pool<sqlx::Postgres>, mode: i32, status: &str, limit_difficulty: Option<BigDecimal>) -> Result<Option<Self>, sqlx::Error> {
+
+        let limit_difficulty = limit_difficulty.unwrap_or_else(|| BigDecimal::from(0)); 
+
+        let record = sqlx::query_as!(
+            Self,
+            r#"
+            SELECT * FROM beatmap WHERE mode = $1 AND status = $2 AND difficulty_rating <= $3 ORDER BY RANDOM() LIMIT 1
+            "#,
+            mode,
+            status,
+            limit_difficulty
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(record)
+    }
+
     pub async fn get_by_id(pool: &sqlx::Pool<sqlx::Postgres>, id: i32) -> Result<Option<Self>, sqlx::Error> {
         let record = sqlx::query_as!(
             Self,
