@@ -1,71 +1,39 @@
 use axum::{
     extract::{Request, State},
-    http::{header::AUTHORIZATION, HeaderMap, StatusCode},
+    http::StatusCode,
     middleware::Next,
     response::Response,
 };
-use crate::auth::{AuthService, Claims};
+use sqlx::PgPool;
+use crate::auth;
+use crate::models::user::user::User;
 
 pub async fn auth_middleware(
-    State(auth_service): State<AuthService>,
-    headers: HeaderMap,
-    mut request: Request,
+    State(pool): State<PgPool>,
+    mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    // Extraire le token du header Authorization
-    let token = extract_token_from_headers(&headers)?;
-    
-    // Vérifier le token
-    let claims = auth_service
-        .verify_token(&token)
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
-    
-    // Ajouter les claims à la requête pour les handlers suivants
-    request.extensions_mut().insert(claims);
-    
-    Ok(next.run(request).await)
-}
+    let auth_header = req.headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .ok_or(StatusCode::UNAUTHORIZED)?;
 
-pub async fn optional_auth_middleware(
-    State(auth_service): State<AuthService>,
-    headers: HeaderMap,
-    mut request: Request,
-    next: Next,
-) -> Response {
-    // Essayer d'extraire le token, mais ne pas échouer si absent
-    if let Ok(token) = extract_token_from_headers(&headers) {
-        // Si token présent, essayer de le vérifier
-        if let Ok(claims) = auth_service.verify_token(&token) {
-            // Ajouter les claims si le token est valide
-            request.extensions_mut().insert(claims);
-        }
-    }
-    
-    // Continuer dans tous les cas (avec ou sans authentification)
-    next.run(request).await
-}
-
-fn extract_token_from_headers(headers: &HeaderMap) -> Result<String, StatusCode> {
-    let auth_header = headers
-        .get(AUTHORIZATION)
-        .ok_or(StatusCode::UNAUTHORIZED)?
+    let auth_header = auth_header
         .to_str()
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-    if !auth_header.starts_with("Bearer ") {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
+    let token = auth_header
+        .strip_prefix("Bearer ")
+        .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    Ok(auth_header.trim_start_matches("Bearer ").to_string())
-}
+    let token_data = auth::decode_jwt(token)
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-// Extension trait pour extraire facilement les claims dans les handlers
-pub trait ClaimsExtension {
-    fn claims(&self) -> Option<&Claims>;
-}
+    // Récupérer l'utilisateur depuis la base de données
+    let user = match User::get_by_id(&pool, token_data.claims.sub.parse().unwrap()).await {
+        Ok(Some(user)) => user,
+        _ => return Err(StatusCode::UNAUTHORIZED),
+    };
 
-impl ClaimsExtension for Request {
-    fn claims(&self) -> Option<&Claims> {
-        self.extensions().get::<Claims>()
-    }
+    req.extensions_mut().insert(user);
+    Ok(next.run(req).await)
 } 

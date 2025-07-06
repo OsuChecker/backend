@@ -3,8 +3,9 @@
 // pub mod user;
 // pub mod product;
 
-pub mod user;
+pub mod common;
+pub mod help;
 pub mod map;
 pub mod score;
-pub mod help;
-pub mod common;
+pub mod user;
+pub mod ranked;

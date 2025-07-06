@@ -3,9 +3,11 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use crate::middleware::auth::auth_middleware;
 use sqlx::PgPool;
 use crate::db::DatabaseManager;
-use crate::handlers::auth::{login, register, me};
+use crate::handlers::auth::me;
+use crate::auth::{login, register};
 
 pub fn router(pool: PgPool) -> Router<DatabaseManager> {
     let public_routes = Router::new()
@@ -13,7 +15,8 @@ pub fn router(pool: PgPool) -> Router<DatabaseManager> {
         .route("/auth/register", post(register));
 
     let protected_routes = Router::new()
-        .route("/auth/me", get(me));
+        .route("/auth/me", get(me))
+        .layer(middleware::from_fn_with_state(pool.clone(), auth_middleware));
 
     public_routes
         .merge(protected_routes)

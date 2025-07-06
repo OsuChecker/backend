@@ -1,13 +1,11 @@
 use crate::models::score::score_stats::generate_score_stats;
-use crate::auth::AuthService;
-use axum::{response::Json, http::{StatusCode, HeaderMap}, extract::State};
+use axum::{response::Json, http::{StatusCode, HeaderMap}, extract::State, Extension};
 use bytes::Bytes;
 use sqlx::PgPool;
 use osu_db::{ScoreList, Mode};
 use axum_extra::extract::multipart::Multipart;
 use std::collections::HashMap;
-use crate::helpers::hit::calculate_accuracy;
-use crate::helpers::hit::Hit;
+use crate::models::user::user::User;
 
 #[derive(Debug, Default, Clone, serde::Serialize)]
 struct MostPlayedBeatmap {
@@ -22,18 +20,9 @@ struct MostPlayedBeatmap {
 #[axum::debug_handler]
 pub async fn load_scores_db(
     State(pool): State<PgPool>,
-    headers: HeaderMap,
+    Extension(user): Extension<User>,
     mut multipart: Multipart,
 ) -> Result<Json<ScoreLoadResponse>, StatusCode> {
-    // Extraire optionnellement les informations utilisateur
-    let auth_service = AuthService::new(
-        std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key".to_string())
-    );
-    let user_claims = auth_service.extract_optional_claims(&headers);
-    
-    // Vérifier que l'utilisateur est authentifié
-    let claims = user_claims.ok_or(StatusCode::UNAUTHORIZED)?;
-    
     // Récupérer le fichier via multipart
     let bytes = extract_file_from_multipart(&mut multipart).await?;
     
@@ -41,12 +30,11 @@ pub async fn load_scores_db(
     let scores_list = parse_scores_db(&bytes)?;
     
     // Générer les statistiques et mettre les scores en file d'attente
-    // Passer les informations utilisateur
-    let stats = generate_score_stats(&scores_list, &claims.username, &pool).await;
+    let stats = generate_score_stats(&scores_list, &user.username, &pool).await;
     
     let message = format!(
         "Bonjour {} ! {} scores détectés sur {} beatmaps. Pour les tests, seuls les 10 premiers scores sont traités en arrière-plan.", 
-        claims.username, stats.scores_count, stats.beatmaps_count
+        user.username, stats.scores_count, stats.beatmaps_count
     );
     
     let response = ScoreLoadResponse {

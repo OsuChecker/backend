@@ -23,7 +23,7 @@ create table if not exists score (
     created_at timestamp default now(),
     updated_at timestamp default now(),
     constraint fk_user foreign key (user_id) references users(id) on delete cascade,
-    constraint valid_rank check (rank in ('XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D')),
+    constraint valid_rank check (rank in ('XH', 'X', 'SH', 'SS', 'S', 'A', 'B', 'C', 'D', 'E','F', 'G')),
     constraint valid_accuracy check (accuracy >= 0 and accuracy <= 100)
 );
 

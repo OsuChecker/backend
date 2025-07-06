@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::NaiveDateTime;
 use fake::Dummy;
 use validator::Validate;
-use fake::faker::internet::en::{FreeEmail, Username};
+use fake::faker::internet::en::FreeEmail;
 use fake::faker::address::en::CountryCode;
 use utoipa::ToSchema;
-use sqlx::types::JsonValue;
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct User {
     pub id: i32,
     pub username: String,

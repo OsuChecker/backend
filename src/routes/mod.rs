@@ -25,6 +25,7 @@ pub mod map;
 pub mod score;
 pub mod public;
 pub mod auth;
+pub mod ranked;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -32,6 +33,7 @@ pub mod auth;
         crate::handlers::user::get_user_by_id,
         crate::handlers::user::get_users,
         crate::handlers::map::beatmap::get_beatmap,
+        crate::handlers::map::beatmap::get_random,
         crate::handlers::map::beatmapset::get_beatmapsets,
         crate::handlers::map::beatmapset::get_beatmapset_by_id,
         crate::handlers::score::score::get_leaderboard,
@@ -46,6 +48,7 @@ pub mod auth;
             crate::models::score::score::LeaderboardSchema,
             crate::handlers::score::pp_calculator::PPCalculationParams,
             crate::handlers::score::pp_calculator::PPCalculationResponse,
+            crate::models::map::beatmap::RandomBeatmapQuerySchema,
         )
     ),
     tags(
@@ -67,6 +70,7 @@ pub fn create_router(db: DatabaseManager) -> Router {
         .nest("/api", map::beatmapset::router(db.get_pool().clone()))
         .nest("/api", score::score::router(db.get_pool().clone()))
         .nest("/api", auth::router(db.get_pool().clone()))
+        .nest("/api", ranked::router(db.get_pool().clone()))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .merge(public::router(db.get_pool().clone()))
         .with_state(db)

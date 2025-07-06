@@ -6,6 +6,31 @@ use sqlx::PgPool;
 use anyhow::Result;
 use crate::helpers::osuapi::{OsuAPI, BeatmapResponse};
 use crate::models::map::beatmap_queue::BeatmapQueue;
+use tracing::info;
+
+#[derive(Deserialize)]
+pub struct RandomBeatmapQuery {
+    pub mode: i32,
+    pub status: String,
+    pub limit_difficulty: Option<BigDecimal>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct RandomBeatmapQuerySchema {
+    pub mode: i32,
+    pub status: String,
+    pub limit_difficulty: Option<f64>,
+}
+
+impl RandomBeatmapQuery {
+    pub fn to_schema(&self) -> RandomBeatmapQuerySchema {
+        RandomBeatmapQuerySchema {
+            mode: self.mode,
+            status: self.status.clone(),
+            limit_difficulty: self.limit_difficulty.as_ref().map(|d| d.to_string().parse::<f64>().unwrap_or(0.0)),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Dummy)]
 pub struct CreateBeatmap {
@@ -113,14 +138,13 @@ impl Beatmap {
     }
 
     // Get a random beatmap from the database
-    pub async fn get_random_beatmap(pool: &sqlx::Pool<sqlx::Postgres>, mode: i32, status: &str, limit_difficulty: Option<BigDecimal>) -> Result<Option<Self>, sqlx::Error> {
-
-        let limit_difficulty = limit_difficulty.unwrap_or_else(|| BigDecimal::from(0)); 
-
+    pub async fn get_random_beatmap(pool: &sqlx::Pool<sqlx::Postgres>, mode: i32, status: &str, limit_difficulty: Option<f64>) -> Result<Option<Self>, sqlx::Error> {
         let record = sqlx::query_as!(
             Self,
             r#"
-            SELECT * FROM beatmap WHERE mode = $1 AND status = $2 AND difficulty_rating <= $3 ORDER BY RANDOM() LIMIT 1
+            SELECT * FROM beatmap WHERE mode = $1 AND status = $2 
+            AND ($3::float8 IS NULL OR difficulty_rating <= $3::float8)
+            ORDER BY RANDOM() LIMIT 1
             "#,
             mode,
             status,
@@ -128,7 +152,6 @@ impl Beatmap {
         )
         .fetch_optional(pool)
         .await?;
-
         Ok(record)
     }
 

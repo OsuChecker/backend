@@ -13,3 +13,4 @@ pub mod map;
 pub mod score;
 pub mod auth;
 pub mod home;
+pub mod ranked;

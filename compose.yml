@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  api:
+    image: debian:bookworm-slim
+    container_name: backend
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./backend:/app/backend
+    command: >
+      bash -c "apt-get update && 
+      apt-get install -y libssl3 ca-certificates &&
+      ./backend"
+    networks:
+      - main_network
+    environment:
+      - RUST_LOG=info
+    ports:
+      - "3010:3010"
+
+networks:
+  main_network:
+    external: true 
